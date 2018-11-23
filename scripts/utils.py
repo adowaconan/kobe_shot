@@ -81,44 +81,35 @@ def draw_court(ax=None, color='black', lw=2, outer_lines=False):
     return ax
 
 def preprocess(df_name = '../data/kobe.csv'):
-    data = pd.read_csv(df_name)
-    data.set_index('shot_id',inplace=True)
+    df = pd.read_csv(df_name)
+    df.set_index('shot_id',inplace=True)
     column_object = ['action_type']
     column_category = ['combined_shot_type',
                        'game_event_id',
                        'game_id',
-                       'period',
+#                       'period',
                        'playoffs',
                        'season',
                        'shot_made_flag',
                        'shot_type',
                        'team_id']
     for column in column_object:
-        data[column] = data[column].astype('object')
+        df[column] = df[column].astype('object')
     for column in column_category:
-        data[column] = data[column].astype('category')
+        df[column] = df[column].astype('category')
     
     # data cleaning
-    df = data.copy()
-    column_drop = ['team_id',
-                   'lat',
-                   'lon',
-                   'game_id',
-                   'game_event_id',
-                   'team_name',
-    #               'shot_made_flag',
-                   ]
-    for column in column_drop:
-        df.drop(column,axis = 1,inplace = True)
+    df['game_data_DT'] = pd.to_datetime(df['game_date'])
+    df['dayofweek'] = df['game_data_DT'].dt.dayofweek
+    df['dayofyear'] = df['game_data_DT'].dt.dayofyear
+    df['secondsFromPeriodEnd'] = 60*df['minutes_remaining']+df['seconds_remaining']
+    df['secondsFromPeriodStart'] = 60*(12-df['minutes_remaining'])+(60-df['seconds_remaining'])
+    df['secondsFromGameStart'] = (df['period']<=4).astype(int)*(df['period']-1)*12*60+ (df['period']>4).astype(int)*((df['period']-4)*5*50+4*12*60) + df['secondsFromPeriodStart']
     
     # transformation
     df['seconds_from_period_end'] = 60 * df['minutes_remaining'] + df['seconds_remaining']
     df['last_5_sec_in_period'] = df['seconds_from_period_end'] < 5
-    column_drop = ['minutes_remaining',
-                   'seconds_remaining',
-                   'seconds_from_period_end']
-    for column in column_drop:
-        df.drop(column,axis = 1,inplace = True)
+    
     
     # Matchup - (away/home)
     df['home_play'] = df['matchup'].str.contains('vs').astype('int')
